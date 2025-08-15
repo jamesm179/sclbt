@@ -1,8 +1,0 @@
-exchange:
-  id: 'test_exchange'
-  test_mode: true
-database:
-  database_url: 'sqlite:///test.db'
-strategies:
-  rsi:
-    rsi_period: 10

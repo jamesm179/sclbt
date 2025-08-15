@@ -1,46 +1,46 @@
-import argparse
+import asyncio
+import sys
+import threading
 import logging
-from src.bot.trading_bot import TradingBot
-from src.core.exceptions import TradingBotException
-import os
-import shutil
+from src.core.bot import CryptoBot
+from src.dashboard.app import DashboardApp
+
+def setup_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(message)s',
+        handlers=[
+            logging.FileHandler("logs/bot.log"),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
 
 def main():
-    # Configure basic logging to capture logs from all modules
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                        handlers=[
-                            logging.FileHandler("logs/bot_run.log"),
-                            logging.StreamHandler()
-                        ])
+    setup_logging()
 
-    parser = argparse.ArgumentParser(description="Crypto Trading Bot")
-
-    parser.add_argument('--symbol', required=True, help="Trading symbol, e.g., BTC/USDT")
-    parser.add_argument('--timeframe', required=True, help="Timeframe, e.g., 1h, 4h, 1d")
-    parser.add_argument('--strategy', required=True, help="Strategy to use, e.g., rsi")
-    parser.add_argument('--config', default='config/config.yaml', help="Path to the configuration file")
-    parser.add_argument('--test-mode', action='store_true', help="Enable test/sandbox mode")
-
-    args = parser.parse_args()
-
-    # Check if config file exists, if not, copy from example
-    if not os.path.exists(args.config):
-        example_config_path = 'config/config.example.yaml'
-        if os.path.exists(example_config_path):
-            print(f"Configuration file not found at {args.config}. Copying from {example_config_path}.")
-            shutil.copy(example_config_path, args.config)
-        else:
-            print(f"ERROR: Default config {args.config} not found, and no example config available.")
-            return
+    # On Windows, a specific asyncio policy is needed for Dash to work with asyncio
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     try:
-        bot = TradingBot(args)
-        bot.run()
-    except TradingBotException as e:
-        print(f"ERROR: {e}")
+        # Initialize the bot
+        bot = CryptoBot()
+
+        # Initialize the dashboard with a reference to the bot
+        dashboard = DashboardApp(bot)
+
+        # Run the dashboard in a separate thread
+        dash_thread = threading.Thread(target=dashboard.run, daemon=True)
+        dash_thread.start()
+
+        # Run the main async bot loop
+        asyncio.run(bot.run())
+
+    except KeyboardInterrupt:
+        logging.info("Bot stopped by user.")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logging.critical(f"A fatal error occurred: {e}", exc_info=True)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

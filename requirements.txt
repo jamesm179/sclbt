@@ -1,6 +1,14 @@
-ccxt
 pandas
 numpy
-SQLAlchemy
-PyYAML
-python-dotenv
+TA-Lib
+dash
+dash-bootstrap-components
+python-telegram-bot
+pyttsx3
+aiohttp
+aiofiles
+# pywin32 is a Windows-only dependency for sound notifications.
+# It should be installed manually on Windows systems: pip install pywin32
+pytz
+requests
+Flask
