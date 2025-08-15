@@ -63,7 +63,9 @@ def register_callbacks(app, bot):
                     api_status_card, technicals_table, trades_table, candles_table, logs)
         except Exception as e:
             logging.error(f"Error updating dashboard: {e}", exc_info=True)
-            return ["Error"] * 10
+            error_message = "Error updating dashboard. Check logs."
+            # The number of returned values must match the number of Outputs (9)
+            return (error_message, "Error", [], [], [], [], [], [], str(e))
 
     # --- Settings Callbacks ---
     @app.callback(
