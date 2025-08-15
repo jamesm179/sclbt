@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, Any
 
 from src.notifications.telegram_notifier import TelegramNotifier
-from src.logging.async_trade_logger import AsyncTradeLogger
+from src.loggers.async_trade_logger import AsyncTradeLogger
 from src.managers.performance_tracker import PerformanceTracker
 from src.strategies.base import Strategy
 from src.strategies.ema_cci_strategy import EMACCIStrategy
