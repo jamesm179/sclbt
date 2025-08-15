@@ -1,69 +1,78 @@
 import ccxt
 from src.data.models import OHLCV
-from src.core.exceptions import APIConnectionException
-import time
+from src.api_clients.bitget_client import BitgetClient
+from src.api_clients.binance_client import BinanceClient
+from src.api_clients.coindcx_client import CoinDCXClient
+import logging
+
+# It's better to get a logger instance than to use print
+logger = logging.getLogger(__name__)
 
 class DataDownloader:
-    def __init__(self, exchange: ccxt.Exchange):
-        self.exchange = exchange
-
-    def download_ohlcv(self, symbol, timeframe='1h', since=None, limit=100):
+    def __init__(self):
         """
-        Downloads historical OHLCV data for a given symbol and timeframe, handling pagination.
+        Initializes the DataDownloader with a prioritized list of clients.
         """
-        if not self.exchange.has['fetchOHLCV']:
-            raise APIConnectionException(f"Exchange {self.exchange.id} does not support fetching OHLCV data.")
+        self.primary_clients = [
+            BitgetClient(),
+            BinanceClient(),
+            CoinDCXClient()
+        ]
+        # A list of exchange IDs to try with ccxt if primary clients fail
+        self.fallback_exchanges = ['kraken', 'coinbase', 'kucoin']
 
-        if isinstance(since, str):
-            since = self.exchange.parse8601(since)
+    def download_ohlcv(self, symbol: str, timeframe: str = '1h', since: int = None, limit: int = 100) -> list[OHLCV]:
+        """
+        Downloads historical OHLCV data using primary direct API clients first,
+        then falls back to using the ccxt library with a list of exchanges.
+        """
+        logger.info(f"Starting OHLCV data download for {symbol}...")
 
-        all_ohlcv = []
-        try:
-            while True:
-                ohlcv = self.exchange.fetch_ohlcv(symbol, timeframe, since, limit)
-                if not ohlcv:
-                    break
+        # --- Attempt 1: Primary Direct API Clients ---
+        for client in self.primary_clients:
+            client_name = client.__class__.__name__
+            logger.info(f"Attempting to fetch data using direct client: {client_name}")
+            try:
+                data = client.fetch_ohlcv(symbol, timeframe, since, limit)
+                if data:
+                    logger.info(f"Successfully fetched {len(data)} records from {client_name}.")
+                    # The source exchange is now logged with the data itself
+                    return self._to_ohlcv_objects(data, client_name.replace('Client','').lower(), symbol)
+            except Exception as e:
+                logger.warning(f"Direct client {client_name} failed for {symbol}. Error: {e}")
+                continue
 
-                first_timestamp = ohlcv[0][0]
-                last_timestamp = ohlcv[-1][0]
+        logger.warning(f"All primary direct clients failed for {symbol}. Moving to ccxt fallback.")
 
-                # Check for duplicates to avoid infinite loops on exchanges that don't advance timestamp
-                if len(all_ohlcv) > 0 and first_timestamp <= all_ohlcv[-1][0]:
-                    break
+        # --- Attempt 2: CCXT Fallback ---
+        for exchange_id in self.fallback_exchanges:
+            logger.info(f"Attempting ccxt fallback with exchange: {exchange_id}")
+            try:
+                exchange = getattr(ccxt, exchange_id)()
+                if exchange.has['fetchOHLCV']:
+                    ohlcv_data = exchange.fetch_ohlcv(symbol, timeframe, since, limit)
+                    if ohlcv_data:
+                        logger.info(f"Successfully fetched {len(ohlcv_data)} records from ccxt fallback: {exchange_id}.")
+                        return self._to_ohlcv_objects(ohlcv_data, exchange_id, symbol)
+            except Exception as e:
+                logger.warning(f"CCXT fallback for {exchange_id} failed for {symbol}. Error: {e}")
+                continue
 
-                all_ohlcv.extend(ohlcv)
+        logger.error(f"Failed to download OHLCV data for {symbol} from all available sources.")
+        return []
 
-                if len(ohlcv) < limit:
-                    break
-
-                since = last_timestamp + self.exchange.parse_timeframe(timeframe) * 1000
-
-                # Respect rate limits
-                time.sleep(self.exchange.rateLimit / 1000)
-
-        except ccxt.NetworkError as e:
-            raise APIConnectionException(f"Network error while fetching OHLCV data: {e}")
-        except ccxt.ExchangeError as e:
-            raise APIConnectionException(f"Exchange error while fetching OHLCV data: {e}")
-        except Exception as e:
-            raise APIConnectionException(f"An unexpected error occurred: {e}")
-
-        # Convert to list of OHLCV objects
+    def _to_ohlcv_objects(self, data: list, exchange_id: str, symbol: str) -> list[OHLCV]:
+        """Converts raw list-of-lists data to a list of OHLCV model objects."""
         ohlcv_objects = []
-        # Use a set to keep track of timestamps and avoid duplicates
-        seen_timestamps = set()
-        for row in all_ohlcv:
-            if row[0] not in seen_timestamps:
-                ohlcv_objects.append(OHLCV(
-                    exchange=self.exchange.id,
-                    symbol=symbol,
-                    timestamp=row[0],
-                    open=row[1],
-                    high=row[2],
-                    low=row[3],
-                    close=row[4],
-                    volume=row[5]
-                ))
-                seen_timestamps.add(row[0])
-
+        for row in data:
+            ohlcv_objects.append(OHLCV(
+                exchange=exchange_id,
+                symbol=symbol,
+                timestamp=row[0],
+                open=row[1],
+                high=row[2],
+                low=row[3],
+                close=row[4],
+                volume=row[5]
+            ))
         return ohlcv_objects

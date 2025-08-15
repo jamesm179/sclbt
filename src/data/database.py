@@ -42,18 +42,20 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def fetch_ohlcv_as_dataframe(self, exchange, symbol, since=None, limit=None, timeframe=None):
+    def fetch_ohlcv_as_dataframe(self, symbol: str, exchange: str = None, since: int = None, limit: int = None, timeframe: str = None):
         session = self.Session()
         try:
-            query = session.query(OHLCV).filter_by(exchange=exchange, symbol=symbol)
+            query = session.query(OHLCV).filter_by(symbol=symbol)
+            if exchange:
+                query = query.filter(OHLCV.exchange == exchange)
 
             if since:
-                # 'since' can be a timestamp integer or datetime object
                 if isinstance(since, pd.Timestamp):
                     since = int(since.timestamp() * 1000)
                 query = query.filter(OHLCV.timestamp >= since)
 
-            query = query.order_by(OHLCV.timestamp.asc())
+            # Order by timestamp descending to get the latest records first
+            query = query.order_by(OHLCV.timestamp.desc())
 
             if limit:
                 query = query.limit(limit)
@@ -62,6 +64,8 @@ class DatabaseManager:
             if not df.empty:
                 df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
                 df.set_index('timestamp', inplace=True)
+                # Sort back to ascending order for strategy processing
+                df.sort_index(inplace=True)
 
             return df
         except Exception as e:

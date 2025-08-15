@@ -1,10 +1,19 @@
 import argparse
+import logging
 from src.bot.trading_bot import TradingBot
 from src.core.exceptions import TradingBotException
 import os
 import shutil
 
 def main():
+    # Configure basic logging to capture logs from all modules
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                        handlers=[
+                            logging.FileHandler("logs/bot_run.log"),
+                            logging.StreamHandler()
+                        ])
+
     parser = argparse.ArgumentParser(description="Crypto Trading Bot")
 
     parser.add_argument('--symbol', required=True, help="Trading symbol, e.g., BTC/USDT")

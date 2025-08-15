@@ -1,9 +1,5 @@
-# Exchange Settings
-exchange:
-  id: 'binance' # Example: binance, bitget, kraken
-  api_key: 'YOUR_API_KEY'
-  secret: 'YOUR_SECRET'
-  test_mode: true # Use sandbox/testnet if available
+# Note: Data source configuration is now managed within the DataDownloader.
+# It prioritizes direct API clients (Bitget, Binance, CoinDCX) and falls back to ccxt.
 
 # Database Settings
 database:

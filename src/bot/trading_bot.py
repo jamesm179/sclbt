@@ -18,18 +18,14 @@ class TradingBot:
         self.logger = setup_logger('trading_bot', 'logs/trading_bot.log')
         self.error_logger = setup_logger('error_logger', 'logs/trading_bot_error.log', level='ERROR')
 
-        self.exchange_id = self.config_manager.get('exchange.id', 'binance')
-        self.api_key = self.config_manager.get('exchange.api_key')
-        self.secret = self.config_manager.get('exchange.secret')
-        self.test_mode = args.test_mode or self.config_manager.get('exchange.test_mode', True)
+        # --- Config Values ---
         self.db_url = self.config_manager.get('database.database_url', 'sqlite:///crypto_ohlcv.db')
-
         self.symbol = args.symbol
         self.timeframe = args.timeframe
 
+        # --- Components ---
         self.db_manager = self._init_db()
-        self.exchange = self._init_exchange()
-        self.downloader = DataDownloader(self.exchange)
+        self.downloader = DataDownloader() # Now exchange-agnostic
         self.strategy = self._init_strategy()
 
     def _init_db(self):
@@ -37,23 +33,6 @@ class TradingBot:
         db_manager.create_tables()
         self.logger.info("Database initialized and tables created.")
         return db_manager
-
-    def _init_exchange(self):
-        try:
-            exchange_class = getattr(ccxt, self.exchange_id)
-            exchange = exchange_class({'apiKey': self.api_key, 'secret': self.secret})
-            if self.test_mode:
-                if 'test' in exchange.urls:
-                    exchange.set_sandbox_mode(True)
-                else:
-                    self.logger.warning(f"Exchange {self.exchange_id} does not support sandbox mode. Live trading is active.")
-
-            exchange.load_markets()
-            self.logger.info(f"Exchange '{self.exchange_id}' initialized. Test mode: {self.test_mode}")
-            return exchange
-        except Exception as e:
-            self.error_logger.error(f"Failed to initialize exchange: {e}")
-            raise
 
     def _init_strategy(self) -> BaseStrategy:
         strategy_name = self.args.strategy.lower()
@@ -70,21 +49,22 @@ class TradingBot:
         return strategy_class(strategy_params)
 
     def _fetch_and_store_data(self):
-        self.logger.info(f"Fetching historical data for {self.symbol}...")
-        since = self.exchange.parse8601('2023-01-01T00:00:00Z')
+        self.logger.info(f"Fetching historical data for {self.symbol} using multi-source downloader...")
+        since = ccxt.Exchange.parse8601('2023-01-01T00:00:00Z')
+
         ohlcv_objects = self.downloader.download_ohlcv(self.symbol, self.timeframe, since=since, limit=1000)
 
         if ohlcv_objects:
             self.db_manager.store_ohlcv(ohlcv_objects)
-            self.logger.info(f"Stored {len(ohlcv_objects)} OHLCV records.")
+            self.logger.info(f"Stored {len(ohlcv_objects)} new OHLCV records in the database.")
         else:
-            self.logger.info("No new historical data found.")
+            self.logger.warning("Could not download any new data from any source.")
 
     def run(self):
         self.logger.info("Starting trading bot...")
         self._fetch_and_store_data()
 
-        interval = self.exchange.parse_timeframe(self.timeframe)
+        interval = ccxt.Exchange.parse_timeframe(self.timeframe)
         self.logger.info(f"Starting trading loop. Cycle interval: {interval} seconds.")
 
         while True:
@@ -101,12 +81,13 @@ class TradingBot:
     def trading_cycle(self):
         self.logger.info("--- New Trading Cycle ---")
 
+        # Fetch the latest data for the symbol from any/all exchanges in the DB
         data = self.db_manager.fetch_ohlcv_as_dataframe(
-            exchange=self.exchange_id, symbol=self.symbol, limit=200
+            symbol=self.symbol, limit=200
         )
 
         if data.empty or len(data) < self.strategy.parameters.get('rsi_period', 14) + 1:
-            self.logger.warning("Not enough data to generate a signal. Fetching more data.")
+            self.logger.warning("Not enough data in DB to generate a signal. Attempting to fetch more.")
             self._fetch_and_store_data()
             return
 
