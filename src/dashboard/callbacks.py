@@ -1,5 +1,5 @@
 import logging
-from dash import Output, Input, State, callback_context, html, dcc
+from dash import Output, Input, State, callback_context, html, dcc, no_update
 from datetime import datetime
 import dash_bootstrap_components as dbc
 import pandas as pd
@@ -23,25 +23,47 @@ def register_callbacks(app, bot):
         Input('refresh-interval', 'n_intervals')
     )
     def update_dashboard(n):
-        # This function will be responsible for fetching all data from the bot
-        # and formatting it for the dashboard. For now, it returns placeholders.
+        # This function fetches data from the bot and formats it for the dashboard.
+        # This is a simplified version. A full implementation would be much more complex.
 
-        last_update = datetime.now().strftime('%H:%M:%S')
-        status_text = "Connected"
+        try:
+            last_update = datetime.now().strftime('%H:%M:%S')
+            status_text = "Connected"
 
-        # Placeholder data
-        bot_status_card = [html.P("Total Pairs: 0"), html.P("Active Trades: 0")]
-        performance_card = [html.P("Balance: $1000.00"), html.P("Signals Today: 0")]
-        api_status_card = [html.P("API Health: Good"), html.P("Connectivity: Normal")]
+            # --- Fetch Data ---
+            active_trades = bot.engine.active_trades or {}
+            active_trades_count = len(active_trades)
+            balance = bot.engine.balance
+            signals_today = bot.engine.signals_today
 
-        technicals_table = dbc.Table.from_dataframe(pd.DataFrame({"Pair": ["N/A"], "Signal": ["N/A"]}))
-        trades_table = dbc.Table.from_dataframe(pd.DataFrame({"Pair": ["No active trades"], "P/L%": ["-"]}))
-        candles_table = dbc.Table.from_dataframe(pd.DataFrame({"Pair": ["N/A"], "Close": ["N/A"]}))
+            # --- Format Components ---
+            bot_status_card = html.Div([
+                html.P(f"Total Pairs: {len(bot.pairs)}"),
+                html.P(f"Active Trades: {active_trades_count}")
+            ])
 
-        logs = "\n".join(bot.display.log_messages if hasattr(bot.display, 'log_messages') else ["No logs yet."])
+            performance_card = html.Div([
+                html.P(f"Balance: ${balance:,.2f}"),
+                html.P(f"Signals Today: {signals_today}")
+            ])
 
-        return (last_update, status_text, bot_status_card, performance_card,
-                api_status_card, technicals_table, trades_table, candles_table, logs)
+            api_status_card = html.Div([
+                html.P(f"API Health: Good"),
+                html.P(f"Connectivity: {bot.connectivity_monitor.current_status}")
+            ])
+
+            # In a real implementation, data for tables would be generated here
+            technicals_table = html.Div("Technical data placeholder.")
+            trades_table = html.Div(f"{active_trades_count} active trades.")
+            candles_table = html.Div("Candle data placeholder.")
+
+            logs = "\n".join(bot.display.log_messages or ["No logs yet."])
+
+            return (last_update, status_text, bot_status_card, performance_card,
+                    api_status_card, technicals_table, trades_table, candles_table, logs)
+        except Exception as e:
+            logging.error(f"Error updating dashboard: {e}", exc_info=True)
+            return ["Error"] * 10
 
     # --- Settings Callbacks ---
     @app.callback(
@@ -49,70 +71,54 @@ def register_callbacks(app, bot):
         Input("open-settings-button", "n_clicks"),
         State("settings-offcanvas", "is_open"),
     )
-    def toggle_settings_offcanvas(n_clicks, is_open):
+    def toggle_offcanvas(n_clicks, is_open):
         if n_clicks:
             return not is_open
         return is_open
 
     @app.callback(
-        [
-            Output("settings-content", "style"),
-            Output("settings-password-section", "style"),
-            Output("password-error-message", "children"),
-            Output("password-verified-store", "data")
-        ],
+        [Output("settings-content", "style"), Output("settings-password-section", "style")],
         Input("unlock-settings-button", "n_clicks"),
-        [
-            State("settings-password-input", "value"),
-            State("password-verified-store", "data")
-        ],
+        State("settings-password-input", "value"),
         prevent_initial_call=True
     )
-    def verify_settings_password(n_clicks, password, is_verified):
-        if is_verified:
-            return {"display": "block"}, {"display": "none"}, "", True
-
-        if n_clicks:
-            # In a real app, this should be a securely hashed password
-            if password == "admin123":
-                return {"display": "block"}, {"display": "none"}, "", True
-            else:
-                return {"display": "none"}, {"display": "block"}, "Incorrect password", False
-        return dash.no_update
+    def verify_password(n_clicks, password):
+        if password == "admin123": # Use a secure method in a real app
+            return {"display": "block"}, {"display": "none"}
+        return {"display": "none"}, {"display": "block"}
 
     @app.callback(
         Output("settings-saved-message", "children"),
         Input("apply-strategy-button", "n_clicks"),
-        [
-            State("auto-trading-toggle", "value"),
-            State("strategy-checklist", "value"),
-            State("leverage-slider", "value"),
-            # Add states for all other settings inputs here
-        ],
+        [State(component_id, component_property) for component_id, component_property in [
+            ("auto-trading-toggle", "value"),
+            ("strategy-checklist", "value"),
+            ("leverage-slider", "value"),
+        ]],
         prevent_initial_call=True
     )
-    def apply_all_settings(n_clicks, auto_trading_val, strategies_val, leverage_val):
+    def apply_settings(n_clicks, auto_trading, active_strategies, leverage):
         if not n_clicks:
-            return ""
+            return no_update
 
-        ctx = callback_context
-        if not ctx.triggered:
-            return ""
+        config_manager.set("auto_trading", "auto" in (auto_trading or []))
+        config_manager.set("active_strategies", active_strategies or [])
+        config_manager.set("leverage", leverage)
 
-        try:
-            # Save all settings to the config manager
-            config_manager.set("auto_trading", "auto" in (auto_trading_val or []))
-            config_manager.set("active_strategies", strategies_val or [])
-            config_manager.set("leverage", leverage_val)
+        bot.display.add_log("Settings applied successfully.")
+        return "Settings Saved!"
 
-            # Here you would get and set all other strategy parameters
+    # --- Kill Switch Callbacks ---
+    @app.callback(
+        Output("kill-switch-modal", "is_open"),
+        [Input("emergency-kill-switch-button", "n_clicks"), Input("kill-switch-close-button", "n_clicks")],
+        State("kill-switch-modal", "is_open"),
+        prevent_initial_call=True,
+    )
+    def toggle_kill_switch_modal(n_open, n_close, is_open):
+        if n_open or n_close:
+            return not is_open
+        return is_open
 
-            logging.info("Settings have been updated and saved.")
-            bot.display.add_log("Settings saved successfully.")
-            return "Settings Saved!"
-        except Exception as e:
-            logging.error(f"Error applying settings: {e}")
-            return f"Error: {e}"
-
-    # Add other callbacks for manual trading, kill switch, etc. here later.
+    # Placeholder for other callbacks
     pass

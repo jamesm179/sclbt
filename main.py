@@ -2,10 +2,14 @@ import asyncio
 import sys
 import threading
 import logging
+import os
 from src.core.bot import CryptoBot
 from src.dashboard.app import DashboardApp
 
 def setup_logging():
+    # Ensure the logs directory exists
+    os.makedirs("logs", exist_ok=True)
+
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s [%(levelname)s] %(message)s',
