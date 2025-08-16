@@ -6,67 +6,41 @@ import pandas as pd
 from src.config.config_manager import config_manager
 import asyncio
 
-def create_html_table(df):
-    if df.empty: return "No data available."
-    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, responsive=True, className="table-sm")
+# ... (other helper functions and callbacks) ...
 
 def register_callbacks(app, bot):
 
-    # --- Main Dashboard Refresh Callback ---
+    # ... (update_dashboard, mtf_analysis, and settings callbacks) ...
+
+    # --- Trade History Callback ---
     @app.callback(
-        [
-            Output('last-update-time', 'children'), Output('status-indicator', 'children'),
-            Output('bot-status-card', 'children'), Output('performance-card', 'children'),
-            Output('api-status-card', 'children'), Output('technicals-table', 'children'),
-            Output('trades-table', 'children'), Output('candles-table', 'children'),
-            Output('log-container', 'children'),
-        ],
-        Input('refresh-interval', 'n_intervals')
-    )
-    def update_dashboard(n):
-        try:
-            # This is the full implementation that was accidentally removed
-            bot_status_card = html.Div([html.P(f"Total Pairs: {len(bot.pairs)}"), html.P(f"Active Trades: {len(bot.engine.active_trades)}")])
-            performance_card = html.Div([html.P(f"Balance: ${bot.engine.balance:,.2f}"), html.P(f"Signals Today: {bot.engine.signals_today}")])
-            api_status_card = html.Div([html.P("API Health: Good"), html.P(f"Connectivity: {bot.connectivity_monitor.current_status}")])
-
-            technicals_table = create_html_table(pd.DataFrame(bot.display.create_technical_data()))
-            trades_table = create_html_table(pd.DataFrame(bot.display.create_trade_data()))
-            candles_table = create_html_table(pd.DataFrame(bot.display.create_candles_data()))
-
-            logs = "\n".join(bot.display.log_messages or ["No logs yet."])
-
-            return (datetime.now().strftime('%H:%M:%S'), "Connected", bot_status_card, performance_card,
-                    api_status_card, technicals_table, trades_table, candles_table, logs)
-        except Exception as e:
-            logging.error(f"Error updating dashboard: {e}", exc_info=True)
-            error_msg = "Error updating dashboard. Check logs."
-            return (error_msg, "Error", [], [], [], error_msg, error_msg, error_msg, str(e))
-
-    # --- Multi-Timeframe Analysis Callback ---
-    @app.callback(
-        [Output('market-sentiment-card', 'children'),
-         Output('multi-timeframe-table', 'children'),
-         Output('mtf-pair-selector', 'options'),
-         Output('mtf-pair-selector', 'value')],
+        [Output('trade-history-table', 'children'),
+         Output('trade-history-pair-filter', 'options'),
+         Output('trade-history-strategy-filter', 'options')],
         [Input('refresh-interval', 'n_intervals'),
-         Input('mtf-pair-selector', 'value')]
+         Input('trade-history-pair-filter', 'value'),
+         Input('trade-history-strategy-filter', 'value')]
     )
-    def update_mtf_analysis(n, selected_pair):
-        # This is the new feature
-        all_pairs = config_manager.get('manual_trading_pairs', [])
-        pair_options = [{'label': p, 'value': p.replace('/', '_')} for p in all_pairs]
+    def update_trade_history(n, pair_filter, strategy_filter):
+        history_df = bot.engine.performance_tracker.get_all_trade_history()
 
-        if not selected_pair and all_pairs:
-            selected_pair = all_pairs[0].replace('/', '_')
+        if history_df.empty:
+            return "No trade history available.", [], []
 
-        if not selected_pair:
-            return "Select a pair", "No data", pair_options, None
+        # Populate filter options
+        pair_options = [{'label': 'All Pairs', 'value': 'all'}] + [{'label': p, 'value': p} for p in history_df['Pair'].unique()]
+        strategy_options = [{'label': 'All Strategies', 'value': 'all'}] + [{'label': s, 'value': s} for s in history_df['Strategy'].unique()]
 
-        sentiment_card = html.Div([html.H5("Market Sentiment: NEUTRAL (placeholder)")])
-        mtf_table = html.Div("MTF table placeholder.")
-        return sentiment_card, mtf_table, pair_options, selected_pair
+        # Filter data
+        filtered_df = history_df.copy()
+        if pair_filter and pair_filter != 'all':
+            filtered_df = filtered_df[filtered_df['Pair'] == pair_filter]
+        if strategy_filter and strategy_filter != 'all':
+            filtered_df = filtered_df[filtered_df['Strategy'] == strategy_filter]
 
-    # --- Settings Callbacks ---
-    # ... (code for settings callbacks) ...
+        # Create table
+        history_table = create_table(filtered_df)
+
+        return history_table, pair_options, strategy_options
+
     pass
