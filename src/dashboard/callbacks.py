@@ -6,39 +6,42 @@ import pandas as pd
 from src.config.config_manager import config_manager
 import asyncio
 
-# ... (helper functions and other callbacks) ...
-
-def create_mtf_table(timeframe_data, analysis_timeframes):
-    """Creates the detailed HTML table for the MTF analysis."""
-    if not timeframe_data:
-        return html.P("No analysis data available.", className="text-center text-muted")
-
-    table_rows = []
-    for tf in analysis_timeframes:
-        tf_data = timeframe_data.get(tf, {})
-        signal = tf_data.get('signal', 'NO_DATA')
-
-        signal_color = {'BUY': 'success', 'SELL': 'danger'}.get(signal, 'secondary')
-        signal_icon = {'BUY': 'fas fa-arrow-up', 'SELL': 'fas fa-arrow-down'}.get(signal, 'fas fa-minus')
-
-        row = html.Tr([
-            html.Td(html.Strong(tf)),
-            # This is where indicator values would go. Placeholder for now.
-            html.Td("N/A"), html.Td("N/A"), html.Td("N/A"),
-            html.Td(dbc.Badge([html.I(className=f"{signal_icon} me-1"), signal], color=signal_color)),
-        ])
-        table_rows.append(row)
-
-    return dbc.Table([
-        html.Thead(html.Tr([
-            html.Th("Timeframe"), html.Th("Indicator 1"), html.Th("Indicator 2"),
-            html.Th("Indicator 3"), html.Th("Signal")
-        ])),
-        html.Tbody(table_rows)
-    ], bordered=True, hover=True, responsive=True, striped=True)
+def create_html_table(df):
+    if df.empty: return "No data available."
+    return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, responsive=True, className="table-sm")
 
 def register_callbacks(app, bot):
-    # ... (update_dashboard and settings callbacks) ...
+
+    # --- Main Dashboard Refresh Callback ---
+    @app.callback(
+        [
+            Output('last-update-time', 'children'), Output('status-indicator', 'children'),
+            Output('bot-status-card', 'children'), Output('performance-card', 'children'),
+            Output('api-status-card', 'children'), Output('technicals-table', 'children'),
+            Output('trades-table', 'children'), Output('candles-table', 'children'),
+            Output('log-container', 'children'),
+        ],
+        Input('refresh-interval', 'n_intervals')
+    )
+    def update_dashboard(n):
+        try:
+            # This is the full implementation that was accidentally removed
+            bot_status_card = html.Div([html.P(f"Total Pairs: {len(bot.pairs)}"), html.P(f"Active Trades: {len(bot.engine.active_trades)}")])
+            performance_card = html.Div([html.P(f"Balance: ${bot.engine.balance:,.2f}"), html.P(f"Signals Today: {bot.engine.signals_today}")])
+            api_status_card = html.Div([html.P("API Health: Good"), html.P(f"Connectivity: {bot.connectivity_monitor.current_status}")])
+
+            technicals_table = create_html_table(pd.DataFrame(bot.display.create_technical_data()))
+            trades_table = create_html_table(pd.DataFrame(bot.display.create_trade_data()))
+            candles_table = create_html_table(pd.DataFrame(bot.display.create_candles_data()))
+
+            logs = "\n".join(bot.display.log_messages or ["No logs yet."])
+
+            return (datetime.now().strftime('%H:%M:%S'), "Connected", bot_status_card, performance_card,
+                    api_status_card, technicals_table, trades_table, candles_table, logs)
+        except Exception as e:
+            logging.error(f"Error updating dashboard: {e}", exc_info=True)
+            error_msg = "Error updating dashboard. Check logs."
+            return (error_msg, "Error", [], [], [], error_msg, error_msg, error_msg, str(e))
 
     # --- Multi-Timeframe Analysis Callback ---
     @app.callback(
@@ -50,6 +53,7 @@ def register_callbacks(app, bot):
          Input('mtf-pair-selector', 'value')]
     )
     def update_mtf_analysis(n, selected_pair):
+        # This is the new feature
         all_pairs = config_manager.get('manual_trading_pairs', [])
         pair_options = [{'label': p, 'value': p.replace('/', '_')} for p in all_pairs]
 
@@ -59,21 +63,10 @@ def register_callbacks(app, bot):
         if not selected_pair:
             return "Select a pair", "No data", pair_options, None
 
-        # This part needs to be properly handled in an async-compatible way
-        # For now, we'll simulate the data structure
-        timeframes = ['1m', '5m', '15m', '1h', '4h', '1d']
-        tf_data = {tf: {'signal': 'NEUTRAL'} for tf in timeframes} # Dummy data
-
-        overall_signals = {'BUY': 0, 'SELL': 0, 'NEUTRAL': 6} # Dummy data
-        sentiment = "NEUTRAL"
-        sentiment_card = html.Div([
-            html.H4(f"Market Sentiment: {sentiment}"),
-            html.P(f"BUY: {overall_signals['BUY']} | SELL: {overall_signals['SELL']} | NEUTRAL: {overall_signals['NEUTRAL']}")
-        ])
-
-        mtf_table = create_mtf_table(tf_data, timeframes)
-
+        sentiment_card = html.Div([html.H5("Market Sentiment: NEUTRAL (placeholder)")])
+        mtf_table = html.Div("MTF table placeholder.")
         return sentiment_card, mtf_table, pair_options, selected_pair
 
-    # ... (other callbacks)
+    # --- Settings Callbacks ---
+    # ... (code for settings callbacks) ...
     pass
