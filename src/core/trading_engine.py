@@ -26,8 +26,9 @@ def get_strategy(strategy_name: str, config: Dict[str, Any]) -> Strategy:
     return strategy_class(config)
 
 class TradingEngine:
-    def __init__(self, api_clients: Dict, pairs: list, display_manager: DisplayManager):
+    def __init__(self, api_clients: Dict, pairs: list, display_manager: DisplayManager, config_manager_instance):
         self.api_clients = api_clients
+        self.config_manager = config_manager_instance
         self.active_trades = {}
         self.telegram = TelegramNotifier(display_manager)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
