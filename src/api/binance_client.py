@@ -17,7 +17,7 @@ class BinanceClient(BaseApiClient):
         if since:
             params['startTime'] = since
 
-        response_data = self._request('/api/v3/klines', params)
+        response_data = await self._request('/api/v3/klines', params)
         if not response_data:
             return []
 
