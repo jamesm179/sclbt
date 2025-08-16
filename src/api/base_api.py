@@ -33,6 +33,8 @@ class BaseExchangeAPI:
         df['high'] = df[['high', 'open', 'close']].max(axis=1)
         df['low'] = df[['low', 'open', 'close']].min(axis=1)
 
+        df.set_index('open_time', inplace=True)
+
         return df
 
     def validate_data_freshness(self, data, pair_symbol, max_age_seconds=None):
