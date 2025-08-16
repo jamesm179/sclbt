@@ -47,5 +47,32 @@ def register_callbacks(app, bot):
             error_msg = "Error updating dashboard. Check logs."
             return (error_msg, "Error", [], [], [], error_msg, error_msg, error_msg, str(e))
 
+    # --- Trade History Callback ---
+    @app.callback(
+        [Output('trade-history-table', 'children'),
+         Output('trade-history-pair-filter', 'options'),
+         Output('trade-history-strategy-filter', 'options')],
+        [Input('refresh-interval', 'n_intervals'),
+         Input('trade-history-pair-filter', 'value'),
+         Input('trade-history-strategy-filter', 'value')]
+    )
+    def update_trade_history(n, pair_filter, strategy_filter):
+        history_df = bot.engine.performance_tracker.get_all_trade_history()
+
+        if history_df.empty:
+            return "No trade history available.", [], []
+
+        pair_options = [{'label': 'All', 'value': 'all'}] + [{'label': p, 'value': p} for p in history_df['Pair'].unique()]
+        strategy_options = [{'label': 'All', 'value': 'all'}] + [{'label': s, 'value': s} for s in history_df['Strategy'].unique()]
+
+        filtered_df = history_df.copy()
+        if pair_filter and pair_filter != 'all':
+            filtered_df = filtered_df[filtered_df['Pair'] == pair_filter]
+        if strategy_filter and strategy_filter != 'all':
+            filtered_df = filtered_df[filtered_df['Strategy'] == strategy_filter]
+
+        history_table = create_table_from_dataframe(filtered_df)
+        return history_table, pair_options, strategy_options
+
     # Other callbacks...
     pass
