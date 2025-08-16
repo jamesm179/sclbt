@@ -1,5 +1,5 @@
 import logging
-from dash import Output, Input, State, callback_context, html, dcc, no_update
+from dash import Output, Input, State, callback_context, html, dcc, no_update, ALL
 from datetime import datetime
 import dash_bootstrap_components as dbc
 import pandas as pd
