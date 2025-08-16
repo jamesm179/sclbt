@@ -101,5 +101,19 @@ def register_callbacks(app, bot):
         bot.display.add_log("Settings applied successfully.")
         return "Settings Saved!"
 
+    # --- Timeframe Selector Callback ---
+    @app.callback(
+        Output('timeframe-store', 'data'), # Dummy output
+        Input('timeframe-selector', 'value'),
+        prevent_initial_call=True
+    )
+    def update_timeframe(selected_timeframe):
+        if not selected_timeframe:
+            return no_update
+
+        config_manager.set('timeframe', selected_timeframe)
+        bot.display.add_log(f"Timeframe changed to: {selected_timeframe}")
+        return selected_timeframe
+
     # Other callbacks...
     pass
