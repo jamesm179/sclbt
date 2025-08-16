@@ -1,6 +1,7 @@
 pandas
 numpy
-TA-Lib
+# TA-Lib dependency removed as it cannot be installed in this environment.
+# Indicators will be re-implemented using pandas.
 dash
 dash-bootstrap-components
 python-telegram-bot
