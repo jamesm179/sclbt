@@ -1,5 +1,6 @@
 from dash import dcc, html
 import dash_bootstrap_components as dbc
+from src.config.config_manager import config_manager
 
 def create_header():
     return html.Div(
@@ -18,7 +19,7 @@ def create_header():
                             {'label': '15m', 'value': '15m'}, {'label': '1h', 'value': '1h'},
                             {'label': '4h', 'value': '4h'}, {'label': '1d', 'value': '1d'}
                         ],
-                        value='1h',
+                        value=config_manager.get('timeframe', '1h'),
                         clearable=False,
                         style={'width': '120px', 'color': 'black'}
                     ),

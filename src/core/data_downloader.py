@@ -9,8 +9,9 @@ from src.api.coindcx_client import CoinDCXClient
 
 class DataDownloader:
     def __init__(self):
-        self.primary_clients: list[BaseApiClient] = [BitgetClient(), BinanceClient(), CoinDCXClient()]
-        self.fallback_exchanges = ['kraken', 'kucoin']
+        # Temporarily focus on Binance for debugging
+        self.primary_clients: list[BaseApiClient] = [BinanceClient()]
+        self.fallback_exchanges = [] # Disable fallback for now
         self.logger = logging.getLogger(self.__class__.__name__)
 
     async def download_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 300) -> list:
