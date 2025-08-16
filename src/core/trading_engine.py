@@ -79,6 +79,13 @@ class TradingEngine:
         return False
 
     def log_trade(self, exchange, action, pair, price, amount, balance, profit_pct, reason, direction, stop_loss_price=None, take_profit_price=None, trade_id=None, status="Active"):
+        # Add log to display manager for the dashboard
+        log_message = f"{action} {pair} at {price:.4f}. Reason: {reason}"
+        if profit_pct is not None:
+            log_message += f" | P/L: {profit_pct:.2f}%"
+        self.display.add_log(log_message)
+
+        # Also log to file via async logger
         asyncio.create_task(
             self.async_trade_logger.log_trade_async(
                 exchange, action, pair, price, amount, balance, profit_pct, reason, direction,

@@ -98,8 +98,8 @@ class DisplayManager:
         for pair_symbol, df in self.pair_data.items():
             if df is None or df.empty: continue
 
-            # Get last 10 candles
-            for _, row in df.tail(10).iterrows():
+            # Get last 3 candles as per user request
+            for _, row in df.tail(3).iterrows():
                 candles.append({
                     'pair': pair_symbol.replace('_', '/').replace('B-', ''),
                     'time_ist': row.name.strftime('%H:%M:%S'),
