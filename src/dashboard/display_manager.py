@@ -49,15 +49,15 @@ class DisplayManager:
                 'pair': pair_symbol.replace('_', '/').replace('B-', ''),
                 'price': f"{close_price:.4f}",
                 'filt': f"{filt:.4f}",
-                'filt_color': '#00FF00' if close_price > filt else '#FF0000',
+                'filt_color': self.engine.config_manager.get('colors', {}).get('positive') if close_price > filt else self.engine.config_manager.get('colors', {}).get('negative'),
                 'up_down': f"{upward:.0f}/{downward:.0f}",
-                'trend_color': '#00FF00' if upward > 0 else '#FF0000',
+                'trend_color': self.engine.config_manager.get('colors', {}).get('positive') if upward > 0 else self.engine.config_manager.get('colors', {}).get('negative'),
                 'cond': f"{cond_ini:.0f}",
-                'cond_color': '#00FF00' if cond_ini == 1 else '#FF0000',
+                'cond_color': self.engine.config_manager.get('colors', {}).get('positive') if cond_ini == 1 else self.engine.config_manager.get('colors', {}).get('negative'),
                 'signal': signal,
-                'signal_color': '#00FF00' if signal == "BUY" else '#FF0000',
+                'signal_color': self.engine.config_manager.get('colors', {}).get('positive') if signal == "BUY" else self.engine.config_manager.get('colors', {}).get('negative'),
                 'avg_pl': "N/A", # Placeholder for now
-                'pl_color': '#FFFFFF',
+                'pl_color': self.engine.config_manager.get('colors', {}).get('neutral'),
                 'pair_symbol': pair_symbol
             })
         return technicals

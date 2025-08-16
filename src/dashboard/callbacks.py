@@ -74,5 +74,32 @@ def register_callbacks(app, bot):
         history_table = create_table(filtered_df)
         return history_table, pair_options, strategy_options
 
+    @app.callback(
+        Output("settings-saved-message", "children"),
+        Input("apply-settings-button", "n_clicks"),
+        [
+            State("positive-color-input", "value"),
+            State("negative-color-input", "value"),
+            State("neutral-color-input", "value"),
+            # Add other states here
+        ],
+        prevent_initial_call=True
+    )
+    def apply_settings(n_clicks, pos_color, neg_color, neut_color):
+        if not n_clicks:
+            return no_update
+
+        colors = {
+            "positive": pos_color,
+            "negative": neg_color,
+            "neutral": neut_color
+        }
+        config_manager.set('colors', colors)
+
+        # Logic to save other settings would go here
+
+        bot.display.add_log("Settings applied successfully.")
+        return "Settings Saved!"
+
     # Other callbacks...
     pass

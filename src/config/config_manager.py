@@ -58,6 +58,11 @@ class ConfigManager:
             "initial_trail_distance": 10.0,
             "trail_tightening_step": 6.0,
             "profit_increment_threshold": 10.0,
+            "colors": {
+                "positive": "#00FF00",
+                "negative": "#FF0000",
+                "neutral": "#FFFFFF"
+            },
             "strategies": {
                 "main_strategy": {
                     "ema50_period": 50, "ema200_period": 200, "cci1_length": 100,
