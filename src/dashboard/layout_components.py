@@ -11,7 +11,17 @@ def create_header():
                     html.Span(id='last-update-time', className="text-light me-3"),
                     html.Span("Status: ", className="text-muted"),
                     html.Span(id='status-indicator', className="px-2 rounded me-3"),
-                    dcc.Dropdown(id='timeframe-selector', value='1h', clearable=False, style={'width': '120px'}),
+                    dcc.Dropdown(
+                        id='timeframe-selector',
+                        options=[
+                            {'label': '1m', 'value': '1m'}, {'label': '5m', 'value': '5m'},
+                            {'label': '15m', 'value': '15m'}, {'label': '1h', 'value': '1h'},
+                            {'label': '4h', 'value': '4h'}, {'label': '1d', 'value': '1d'}
+                        ],
+                        value='1h',
+                        clearable=False,
+                        style={'width': '120px', 'color': 'black'}
+                    ),
                     dbc.Button(html.I(className="fas fa-cog"), id="open-settings-button", color="secondary", className="ms-3"),
                 ], className="d-flex align-items-center justify-content-end")
             )
