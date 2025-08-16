@@ -37,6 +37,10 @@ def main():
         dash_thread = threading.Thread(target=dashboard.run, daemon=True)
         dash_thread.start()
 
+        # Start the config file watcher
+        from src.config.config_manager import config_manager
+        config_manager.start_watching()
+
         # Run the main async bot loop
         asyncio.run(bot.run())
 
