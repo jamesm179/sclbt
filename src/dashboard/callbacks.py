@@ -4,11 +4,10 @@ from datetime import datetime
 import dash_bootstrap_components as dbc
 import pandas as pd
 from src.config.config_manager import config_manager
+import asyncio
 
-def create_table_from_dataframe(df):
-    """Helper function to create a dbc.Table from a DataFrame."""
-    if df.empty:
-        return dbc.Alert("No data available.", color="info")
+def create_table(df):
+    if df.empty: return dbc.Alert("No data available.", color="info", className="mt-2")
     return dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True, responsive=True, className="table-sm")
 
 def register_callbacks(app, bot):
@@ -20,49 +19,33 @@ def register_callbacks(app, bot):
             Output('bot-status-card', 'children'), Output('performance-card', 'children'),
             Output('api-status-card', 'children'), Output('technicals-table', 'children'),
             Output('trades-table', 'children'), Output('candles-table', 'children'),
-            Output('log-container', 'children'),
+            Output('log-container', 'children')
         ],
         Input('refresh-interval', 'n_intervals')
     )
     def update_dashboard(n):
-        last_update = datetime.now().strftime('%H:%M:%S')
-        status_text = "Connected"
-        bot_status_card = html.Div([html.P(f"Active Trades: {len(bot.engine.active_trades)}")])
-        performance_card = html.Div([html.P(f"Balance: ${bot.engine.balance:,.2f}")])
-        api_status_card = html.Div([html.P("API Health: Good")])
-        technicals_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_technical_data()))
-        trades_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_trade_data()))
-        candles_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_candles_data()))
-        logs = "\n".join(bot.display.log_messages or ["No logs yet."])
+        try:
+            # --- Fetch Data ---
+            active_trades_list = bot.display.create_trade_data()
+            technicals_list = bot.display.create_technical_data()
+            candles_list = bot.display.create_candles_data()
+            logs = "\n".join(bot.display.log_messages or ["No logs yet."])
 
-        return (last_update, status_text, bot_status_card, performance_card,
-                api_status_card, technicals_table, trades_table, candles_table, logs)
+            # --- Format Components ---
+            bot_status_card = html.Div([html.P(f"Active Trades: {len(active_trades_list)}")])
+            performance_card = html.Div([html.P(f"Balance: ${bot.engine.balance:,.2f}")])
+            api_status_card = html.Div([html.P("API Health: Good")])
 
-    # --- Trade History Callback ---
-    @app.callback(
-        [Output('trade-history-table', 'children'),
-         Output('trade-history-pair-filter', 'options'),
-         Output('trade-history-strategy-filter', 'options')],
-        [Input('refresh-interval', 'n_intervals'),
-         Input('trade-history-pair-filter', 'value'),
-         Input('trade-history-strategy-filter', 'value')]
-    )
-    def update_trade_history(n, pair_filter, strategy_filter):
-        history_df = bot.engine.performance_tracker.get_all_trade_history()
-        if history_df.empty:
-            return "No trade history available.", [], []
+            technicals_table = create_table(pd.DataFrame(technicals_list))
+            trades_table = create_table(pd.DataFrame(active_trades_list)) if active_trades_list else "No active trades."
+            candles_table = create_table(pd.DataFrame(candles_list))
 
-        pair_options = [{'label': 'All', 'value': 'all'}] + [{'label': p, 'value': p} for p in history_df['Pair'].unique()]
-        strategy_options = [{'label': 'All', 'value': 'all'}] + [{'label': s, 'value': s} for s in history_df['Strategy'].unique()]
-
-        filtered_df = history_df.copy()
-        if pair_filter and pair_filter != 'all':
-            filtered_df = filtered_df[filtered_df['Pair'] == pair_filter]
-        if strategy_filter and strategy_filter != 'all':
-            filtered_df = filtered_df[filtered_df['Strategy'] == strategy_filter]
-
-        history_table = create_table_from_dataframe(filtered_df)
-        return history_table, pair_options, strategy_options
+            return (datetime.now().strftime('%H:%M:%S'), "Connected", bot_status_card, performance_card,
+                    api_status_card, technicals_table, trades_table, candles_table, logs)
+        except Exception as e:
+            logging.error(f"Error updating dashboard: {e}", exc_info=True)
+            error_msg = "Error updating dashboard. Check logs."
+            return (error_msg, "Error", [], [], [], error_msg, error_msg, error_msg, str(e))
 
     # Other callbacks...
     pass
