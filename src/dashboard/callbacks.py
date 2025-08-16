@@ -71,7 +71,7 @@ def register_callbacks(app, bot):
         if strategy_filter and strategy_filter != 'all':
             filtered_df = filtered_df[filtered_df['Strategy'] == strategy_filter]
 
-        history_table = create_table_from_dataframe(filtered_df)
+        history_table = create_table(filtered_df)
         return history_table, pair_options, strategy_options
 
     # Other callbacks...
