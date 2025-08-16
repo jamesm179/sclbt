@@ -6,7 +6,7 @@ class CoinDCXClient(BaseApiClient):
     def __init__(self):
         super().__init__("https://public.coindcx.com")
 
-    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 500) -> list:
+    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 300) -> list:
         interval_map = {'1m': '1m', '5m': '5m', '1h': '1h', '1d': '1d'}
         try:
             base, quote = symbol.split('/')

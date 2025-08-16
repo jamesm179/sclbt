@@ -6,10 +6,15 @@ class BitgetClient(BaseApiClient):
     def __init__(self):
         super().__init__("https://api.bitget.com")
 
-    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 100) -> list:
+    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 300) -> list:
         granularity_map = {'1m': '1m', '5m': '5m', '1h': '1H', '1d': '1D'}
+
+        formatted_symbol = symbol.replace('/', '').replace('_', '')
+        if not formatted_symbol.upper().endswith('USDT'):
+            formatted_symbol += 'USDT'
+
         params = {
-            'symbol': symbol.replace('/', '').replace('_', '') + 'USDT',
+            'symbol': formatted_symbol,
             'granularity': granularity_map.get(timeframe, timeframe),
             'limit': limit
         }

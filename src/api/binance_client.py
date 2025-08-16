@@ -6,7 +6,7 @@ class BinanceClient(BaseApiClient):
     def __init__(self):
         super().__init__("https://api.binance.com")
 
-    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 500) -> list:
+    async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 300) -> list:
         # Binance uses 'interval' for timeframe and a specific symbol format
         interval_map = {'1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h', '4h': '4h', '1d': '1d'}
         params = {
