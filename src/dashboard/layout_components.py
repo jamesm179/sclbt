@@ -38,6 +38,8 @@ def create_dashboard_tab():
         ], className="p-3"),
         html.Div([html.H3("Technical Analysis"), html.Div(id='technicals-table')], className="p-3"),
         html.Div([html.H3("Active Positions"), html.Div(id='trades-table')], className="p-3"),
+        html.Div([html.H3("Recent Market Data"), html.Div(id='candles-table')], className="p-3"),
+        html.Div([html.H3("Event Log"), html.Pre(id='log-container', className="bg-secondary text-light p-3 rounded")], className="p-3"),
     ])
 
 def create_mtf_tab():

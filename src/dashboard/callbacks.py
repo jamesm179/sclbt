@@ -15,14 +15,16 @@ def register_callbacks(app, bot):
 
     # --- Main Dashboard Refresh Callback ---
     @app.callback(
-        [Output('last-update-time', 'children'), Output('status-indicator', 'children'),
-         Output('bot-status-card', 'children'), Output('performance-card', 'children'),
-         Output('api-status-card', 'children'), Output('technicals-table', 'children'),
-         Output('trades-table', 'children')],
+        [
+            Output('last-update-time', 'children'), Output('status-indicator', 'children'),
+            Output('bot-status-card', 'children'), Output('performance-card', 'children'),
+            Output('api-status-card', 'children'), Output('technicals-table', 'children'),
+            Output('trades-table', 'children'), Output('candles-table', 'children'),
+            Output('log-container', 'children'),
+        ],
         Input('refresh-interval', 'n_intervals')
     )
     def update_dashboard(n):
-        # This is still a simplified version for now
         last_update = datetime.now().strftime('%H:%M:%S')
         status_text = "Connected"
         bot_status_card = html.Div([html.P(f"Active Trades: {len(bot.engine.active_trades)}")])
@@ -30,7 +32,11 @@ def register_callbacks(app, bot):
         api_status_card = html.Div([html.P("API Health: Good")])
         technicals_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_technical_data()))
         trades_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_trade_data()))
-        return (last_update, status_text, bot_status_card, performance_card, api_status_card, technicals_table, trades_table)
+        candles_table = create_table_from_dataframe(pd.DataFrame(bot.display.create_candles_data()))
+        logs = "\n".join(bot.display.log_messages or ["No logs yet."])
+
+        return (last_update, status_text, bot_status_card, performance_card,
+                api_status_card, technicals_table, trades_table, candles_table, logs)
 
     # --- Trade History Callback ---
     @app.callback(
