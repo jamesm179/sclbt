@@ -11,7 +11,14 @@ class DashboardApp:
         theme = config_manager.get('theme', 'dark')
         theme_url = dbc.themes.DARKLY if theme == 'dark' else dbc.themes.LITERA
 
-        self.app = dash.Dash(__name__, external_stylesheets=[theme_url])
+        # Add required external stylesheets for fonts and icons
+        external_stylesheets = [
+            theme_url,
+            "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap",
+            "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css"
+        ]
+
+        self.app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
         self.app.title = "Sniper Bot V1 Dashboard"
 
         # Use the full layout from the layout_components module
