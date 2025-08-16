@@ -8,7 +8,7 @@ class BaseApiClient(ABC):
     """
     def __init__(self, base_url):
         self.base_url = base_url
-        self.session = aiohttp.ClientSession()
+        # Do NOT create the session here. It must be created inside an async function.
 
     @abstractmethod
     async def fetch_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = None) -> list:
@@ -20,16 +20,19 @@ class BaseApiClient(ABC):
     async def _request(self, endpoint: str, params: dict = None):
         """
         Makes an asynchronous HTTP GET request to the specified endpoint.
+        The session is created and closed within the function to ensure thread safety.
         """
         url = self.base_url + endpoint
         try:
-            async with self.session.get(url, params=params, timeout=10) as response:
-                response.raise_for_status()
-                return await response.json()
+            # Create the session inside the async function
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, params=params, timeout=10) as response:
+                    response.raise_for_status()
+                    return await response.json()
         except aiohttp.ClientError as e:
             logging.error(f"API request failed for {url}: {e}")
             return None
 
-    async def close(self):
-        """Closes the aiohttp session."""
-        await self.session.close()
+    # The close method is no longer needed as the session is managed by the 'with' statement.
+    # async def close(self):
+    #     pass

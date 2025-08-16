@@ -30,7 +30,8 @@ class CryptoBot:
 
     def update_trading_pairs(self):
         manual_pairs = config_manager.get('manual_trading_pairs', [])
-        self.pairs = [{"symbol": s.replace('/', '_'), "color": "white"} for s in manual_pairs]
+        # Store symbols in their original 'BASE/QUOTE' format
+        self.pairs = [{"symbol": s, "color": "white"} for s in manual_pairs]
         self.engine.pairs = self.pairs
         self.logger.info(f"Trading pairs updated: {len(self.pairs)} pairs active.")
 
