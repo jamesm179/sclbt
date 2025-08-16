@@ -49,8 +49,26 @@ class TradingEngine:
         self.emergency_kill_switch = EmergencyKillSwitch(self)
 
     async def process_data(self, data, pair_info=None):
-        # Simplified for now
-        return {}
+        """
+        Process market data with all active strategies.
+        """
+        if data.empty:
+            return None
+
+        pair_name = pair_info["symbol"] if pair_info else "UNKNOWN_PAIR"
+
+        try:
+            strategy_dfs = {}
+            # Process with each active strategy
+            for strat_name, strategy in self.strategies.items():
+                df_strat = strategy.get_indicators(data.copy())
+                strategy_dfs[strat_name] = df_strat
+
+            return strategy_dfs
+        except Exception as e:
+            self.display.add_log(f"Error processing {pair_name}: {e}")
+            logging.error(f"Error processing data for {pair_name}: {e}", exc_info=True)
+            return None
 
     async def check_signals(self, strategy_dfs):
         # Simplified for now
