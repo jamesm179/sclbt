@@ -1,44 +1,57 @@
 import logging
 import asyncio
-import ccxt.async_support as ccxt # Use async version of ccxt
+import ccxt.async_support as ccxt
+from src.api.base_client import BaseApiClient
 from src.api.bitget_client import BitgetClient
 from src.api.binance_client import BinanceClient
 from src.api.coindcx_client import CoinDCXClient
-from src.data.models import OHLCV # Assuming this model exists
+# from src.data.models import OHLCV # This model is not fully used yet
 
 class DataDownloader:
     def __init__(self):
-        self.primary_clients = [BitgetClient(), BinanceClient(), CoinDCXClient()]
+        self.primary_clients: list[BaseApiClient] = [BitgetClient(), BinanceClient(), CoinDCXClient()]
         self.fallback_exchanges = ['kraken', 'kucoin']
+        self.logger = logging.getLogger(self.__class__.__name__)
 
     async def download_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 100) -> list:
-        logging.info(f"Attempting to download OHLCV for {symbol} using direct API clients...")
+        self.logger.info(f"Attempting to download OHLCV for {symbol} | Timeframe: {timeframe}")
 
+        # --- Try Primary Direct API Clients ---
         for client in self.primary_clients:
+            client_name = client.__class__.__name__
+            self.logger.debug(f"Trying direct client: {client_name}")
             try:
                 data = await client.fetch_ohlcv(symbol, timeframe, since, limit)
                 if data:
-                    logging.info(f"Successfully fetched {len(data)} records from {client.__class__.__name__}.")
-                    return self._to_ohlcv_objects(data, client.__class__.__name__.replace('Client','').lower(), symbol)
+                    self.logger.info(f"SUCCESS: Fetched {len(data)} records from {client_name}.")
+                    # In the future, this would return OHLCV objects
+                    return data
+                else:
+                    self.logger.debug(f"Client {client_name} returned no data for {symbol}.")
             except Exception as e:
-                logging.warning(f"Client {client.__class__.__name__} failed: {e}")
+                self.logger.error(f"FAIL: Client {client_name} failed for {symbol}. Error: {e}", exc_info=True)
+                continue
 
-        logging.warning("All primary API clients failed. Falling back to ccxt.")
+        self.logger.warning(f"All primary API clients failed for {symbol}. Falling back to ccxt.")
 
+        # --- Fallback to CCXT ---
         for exchange_id in self.fallback_exchanges:
+            self.logger.debug(f"Trying ccxt fallback: {exchange_id}")
             try:
                 exchange = getattr(ccxt, exchange_id)()
                 if exchange.has['fetchOHLCV']:
                     ohlcv_data = await exchange.fetch_ohlcv(symbol, timeframe, since, limit)
-                    await exchange.close()
+                    await exchange.close() # Close the session
                     if ohlcv_data:
-                        logging.info(f"Successfully fetched {len(ohlcv_data)} records from ccxt fallback: {exchange_id}.")
-                        return self._to_ohlcv_objects(ohlcv_data, exchange_id, symbol)
+                        self.logger.info(f"SUCCESS: Fetched {len(ohlcv_data)} records from ccxt fallback: {exchange_id}.")
+                        return ohlcv_data
+                else:
+                    self.logger.debug(f"CCXT exchange {exchange_id} does not support fetchOHLCV.")
             except Exception as e:
-                logging.warning(f"CCXT fallback for {exchange_id} failed: {e}")
+                self.logger.error(f"FAIL: CCXT fallback for {exchange_id} failed for {symbol}. Error: {e}", exc_info=True)
+                if 'exchange' in locals() and exchange:
+                    await exchange.close()
+                continue
 
+        self.logger.error(f"CRITICAL: Failed to download OHLCV data for {symbol} from ALL available sources.")
         return []
-
-    def _to_ohlcv_objects(self, data: list, exchange_id: str, symbol: str) -> list:
-        # This should return OHLCV objects, but for now, we'll just return the raw list
-        return data

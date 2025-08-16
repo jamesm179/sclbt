@@ -16,20 +16,15 @@ class HealthMonitor: # Placeholder
 
 class CryptoBot:
     def __init__(self):
-        self.display = DisplayManager(trading_engine=None, db_manager=None, performance_tracker=None)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.display = DisplayManager()
         self.downloader = DataDownloader()
-
         self.pairs = []
         self.engine = TradingEngine(api_clients={}, pairs=self.pairs, display_manager=self.display)
-
         self.display.engine = self.engine
         self.health_monitor = HealthMonitor()
-        # self.connectivity_monitor = ConnectivityMonitor() # This needs to be integrated properly
-
         self.engine.bot = self
         self.health_monitor.set_bot(self)
-        # self.connectivity_monitor.set_bot(self)
-
         self.update_trading_pairs()
         self.running = True
 
@@ -37,14 +32,16 @@ class CryptoBot:
         manual_pairs = config_manager.get('manual_trading_pairs', [])
         self.pairs = [{"symbol": s.replace('/', '_'), "color": "white"} for s in manual_pairs]
         self.engine.pairs = self.pairs
-        logging.info(f"Trading pairs updated: {len(self.pairs)} pairs active.")
+        self.logger.info(f"Trading pairs updated: {len(self.pairs)} pairs active.")
 
     async def run(self):
-        logging.info("CryptoBot run loop started.")
-        # self.connectivity_monitor.start_monitoring()
-
+        self.logger.info("CryptoBot run loop started.")
+        cycle_count = 0
         while self.running:
+            cycle_count += 1
+            self.logger.info(f"--- Starting Bot Cycle #{cycle_count} ---")
             start_time = time.time()
+
             self.health_monitor.check_blacklist()
             active_pairs = [p for p in self.pairs if not self.health_monitor.is_pair_blacklisted(p["symbol"])]
 
@@ -54,16 +51,19 @@ class CryptoBot:
             self.health_monitor.record_successful_cycle()
 
             elapsed = time.time() - start_time
-            refresh_interval = 60 # Hardcode for now
+            self.logger.info(f"--- Bot Cycle #{cycle_count} Finished ({elapsed:.2f}s) ---")
+
+            refresh_interval = 60
             await asyncio.sleep(max(0, refresh_interval - elapsed))
 
     async def process_pair(self, pair_info):
         pair_symbol = pair_info["symbol"]
         timeframe = config_manager.get('timeframe', '1h')
+        self.logger.debug(f"Processing pair: {pair_symbol}")
         try:
-            # The downloader returns a list of lists, need to convert to DataFrame
             ohlcv_data = await self.downloader.download_ohlcv(pair_symbol, timeframe)
             if not ohlcv_data:
+                self.logger.warning(f"No OHLCV data returned for {pair_symbol}.")
                 return
 
             df = pd.DataFrame(ohlcv_data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -73,13 +73,11 @@ class CryptoBot:
             strategy_dfs = await self.engine.process_data(df, pair_info)
             self.display.update_pair_data(pair_symbol, strategy_dfs)
 
-            # signals = await self.engine.check_signals(strategy_dfs)
-            # if signals: await self.engine.execute_trades(signals)
+            self.logger.debug(f"Successfully processed pair: {pair_symbol}")
 
         except Exception as e:
-            logging.error(f"Error processing pair {pair_symbol}: {e}", exc_info=True)
+            self.logger.error(f"CRITICAL ERROR processing pair {pair_symbol}: {e}", exc_info=True)
 
     def shutdown(self, signum=None, frame=None):
         self.running = False
-        # self.connectivity_monitor.stop_monitoring()
-        logging.info("Shutting down bot...")
+        self.logger.info("Shutting down bot...")
