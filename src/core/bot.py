@@ -20,7 +20,7 @@ class CryptoBot:
         self.downloader = DataDownloader()
 
         self.pairs = []
-        self.engine = TradingEngine(api_clients={}, pairs=self.pairs, display=self.display)
+        self.engine = TradingEngine(api_clients={}, pairs=self.pairs, display_manager=self.display)
 
         self.display.engine = self.engine
         self.health_monitor = HealthMonitor()
