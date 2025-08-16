@@ -16,13 +16,13 @@ class BitgetClient(BaseApiClient):
         params = {
             'symbol': formatted_symbol,
             'granularity': granularity_map.get(timeframe, timeframe),
-            'limit': limit
+            'limit': limit,
+            'productType': 'usdt-futures'
         }
         if since:
             params['startTime'] = since
 
-        # Using the spot endpoint as it's more general
-        response_data = await self._request('/api/v2/spot/market/candles', params)
+        response_data = await self._request('/api/v2/mix/market/history-candles', params)
         if not response_data:
             return []
 

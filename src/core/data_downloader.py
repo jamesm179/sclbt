@@ -13,7 +13,7 @@ class DataDownloader:
         self.fallback_exchanges = ['kraken', 'kucoin']
         self.logger = logging.getLogger(self.__class__.__name__)
 
-    async def download_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 100) -> list:
+    async def download_ohlcv(self, symbol: str, timeframe: str, since: int = None, limit: int = 300) -> list:
         self.logger.info(f"Attempting to download OHLCV for {symbol} | Timeframe: {timeframe}")
 
         # --- Try Primary Direct API Clients ---
